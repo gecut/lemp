@@ -1,0 +1,110 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+name: Publish Special Containers
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - next
+      - main
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    name: Build & Publish Containers
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      max-parallel: 1
+      matrix:
+        include:
+          - image: mysql
+            path: containers/mysql
+            description: MySQL is a widely used, open-source relational database management system (RDBMS).
+            version:
+              short: 9
+              full: 9.1.0
+
+          - image: nginx
+            path: containers/nginx
+            description: Official build of Nginx.
+            version:
+              short: 1
+              full: '1.27-alpine'
+
+          - image: wordpress
+            path: containers/wordpress
+            description: The WordPress rich content management system can utilize plugins, widgets, and themes.
+            version:
+              short: 6
+              full: 6.6-php8.2-fpm-alpine
+
+    permissions:
+      contents: read
+      packages: write
+      # This is used to complete the identity challenge
+      # with sigstore/fulcio when running outside of PRs.
+      id-token: write
+
+    steps:
+      - name: ⤵️ Checkout repository
+        uses: actions/checkout@v4.0.0
+
+      - name: 🏗 Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5.0.0
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          images: |
+            name=${{env.REGISTRY}}/gecut/lemp/${{matrix.image}},enable=false
+            name=${{env.REGISTRY}}/${{github.repository_owner}}/lemp/${{matrix.image}},enable=true
+
+          labels: |
+            org.opencontainers.image.authors=dev@mm25zamanian.ir
+            org.opencontainers.image.title=@Gecut/${{matrix.image}}
+            org.opencontainers.image.description=${{matrix.description}}
+
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=${{matrix.version.short}}
+            type=raw,value=${{matrix.version.full}}
+            # type=semver,pattern={{version}},prefix=alwatr-
+            # type=semver,pattern={{major}}.{{minor}},prefix=alwatr-
+
+      - name: 🏗 Install cosign
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: sigstore/cosign-installer@v3.1.2
+
+      - name: 🏗 Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3.0.0
+
+      - name: 🏗 Log into registry ${{env.REGISTRY}}
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3.0.0
+        with:
+          registry: ${{env.REGISTRY}}
+          username: ${{github.repository_owner}}
+          password: ${{secrets.GITHUB_TOKEN}}
+
+      - name: 🚀 Build and push container image
+        id: build-and-push
+        uses: docker/build-push-action@v5.0.0
+        with:
+          context: ${{matrix.path}}
+          push: ${{github.event_name != 'pull_request'}}
+          tags: ${{steps.meta.outputs.tags}}
+          labels: ${{steps.meta.outputs.labels}}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 🏗 Sign the published container image
+        if: ${{github.event_name != 'pull_request'}}
+        env:
+          COSIGN_EXPERIMENTAL: 'true'
+        run: echo "${{steps.meta.outputs.tags}}" | xargs -I {} cosign sign --yes {}@${{steps.build-and-push.outputs.digest}}
