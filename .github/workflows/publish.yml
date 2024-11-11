@@ -27,8 +27,8 @@ jobs:
             path: containers/mysql
             description: MySQL is a widely used, open-source relational database management system (RDBMS).
             version:
-              short: 9
-              full: 9.1.0
+              short: 8
+              full: 8.0
 
           - image: nginx
             path: containers/nginx

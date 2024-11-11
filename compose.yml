@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  db:
+    build: ./containers/mysql
+    container_name: db
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - db:/var/lib/mysql
+    environment:
+      - MYSQL_DATABASE=wordpress
+    ports:
+      - "3306:3306"
+    networks:
+      - app-network
+
+  wordpress:
+    depends_on:
+      - db
+    build: ./containers/wordpress
+    container_name: wordpress
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - WORDPRESS_DB_HOST=db:3306
+      - WORDPRESS_DB_USER=$MYSQL_USER
+      - WORDPRESS_DB_PASSWORD=$MYSQL_PASSWORD
+      - WORDPRESS_DB_NAME=wordpress
+    volumes:
+      - wordpress:/var/www/html
+    ports:
+      - "9000:9000"
+    networks:
+      - app-network
+
+  webserver:
+    depends_on:
+      - wordpress
+    build: ./containers/nginx
+    container_name: webserver
+    restart: unless-stopped
+    ports:
+      - "9090:80"
+    volumes:
+      - wordpress:/var/www/html
+    networks:
+      - app-network
+
+volumes:
+  wordpress:
+  db:
+
+networks:
+  app-network:
+    driver: bridge
