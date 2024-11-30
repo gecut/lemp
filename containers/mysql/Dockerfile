@@ -3,7 +3,6 @@ FROM mysql:8.0
 
 # Set the default authentication plugin
 ENV MYSQL_ROOT_PASSWORD=your_root_password
-ENV MYSQL_DATABASE=wordpress
 ENV MYSQL_USER=your_db_user
 ENV MYSQL_PASSWORD=your_db_password
 

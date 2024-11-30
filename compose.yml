@@ -1,44 +1,41 @@
 services:
   db:
-    platform: linux/amd64
-    image: ghcr.io/gecut/lemp/mysql:8
+    build: containers/mysql
     container_name: db
     restart: unless-stopped
     env_file: .env
+    mem_limit: 512M
+    cpus: 0.128
     volumes:
       - db:/var/lib/mysql
-    environment:
-      - MYSQL_DATABASE=wordpress
     networks:
       - app-network
 
   wordpress:
     depends_on:
       - db
-    platform: linux/amd64
-    image: ghcr.io/gecut/lemp/wordpress:6
+    build:
+      context: containers/wordpress
+      args:
+        IONCUBE_LOADER: "1"
     container_name: wordpress
     restart: unless-stopped
     env_file: .env
-    environment:
-      - WORDPRESS_DB_HOST=db:3306
-      - WORDPRESS_DB_USER=$MYSQL_USER
-      - WORDPRESS_DB_PASSWORD=$MYSQL_PASSWORD
-      - WORDPRESS_DB_NAME=wordpress
+    mem_limit: 512M
+    cpus: 0.512
     volumes:
       - wordpress:/var/www/html
     networks:
       - app-network
 
   webserver:
-    depends_on:
-      - wordpress
-    platform: linux/amd64
-    image: ghcr.io/gecut/lemp/nginx:1
+    build: containers/nginx
     container_name: webserver
     restart: unless-stopped
+    mem_limit: 128M
+    cpus: 0.512
     ports:
-      - "9090:80"
+      - "80:80"
     volumes:
       - wordpress:/var/www/html
     networks:
@@ -51,3 +48,4 @@ volumes:
 networks:
   app-network:
     driver: bridge
+    external: true
