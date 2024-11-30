@@ -1,5 +1,5 @@
 # Use a lightweight MySQL image
-FROM mysql:8.0
+FROM mysql:8.0-debian
 
 # Set the default authentication plugin
 ENV MYSQL_ROOT_PASSWORD=your_root_password
