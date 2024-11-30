@@ -1,5 +1,5 @@
 # Use a lightweight MySQL image
-FROM mysql:8.0
+FROM mariadb:11.4.4-noble
 
 # Set the default authentication plugin
 ENV MYSQL_ROOT_PASSWORD=your_root_password
